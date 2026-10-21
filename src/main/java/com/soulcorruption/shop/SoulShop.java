@@ -77,10 +77,12 @@ public final class SoulShop {
 			return;
 		}
 
-		SoulService.give(player, new ItemStack(item, Math.clamp(entry.count, 1, 99)));
+		ItemStack bought = new ItemStack(item, Math.clamp(entry.count, 1, 99));
+		Component name = bought.getHoverName();
+		SoulService.give(player, bought);
 		playSound(player, SoundEvents.SOUL_ESCAPE.value(), 1.2f);
 		player.sendSystemMessage(Component.translatable("message.soulcorruption.shop_bought",
-				entry.count, item.getName(), entry.price, SoulService.record(player).souls)
+				entry.count, name, entry.price, SoulService.record(player).souls)
 				.withStyle(ChatFormatting.DARK_PURPLE));
 	}
 

@@ -49,7 +49,9 @@ public final class SoulService {
 	/** Gibt dem Spieler ein Item; bei vollem Inventar wird es vor ihm gedroppt. */
 	public static void give(ServerPlayer player, ItemStack stack) {
 		if (!player.getInventory().add(stack) && !stack.isEmpty()) {
-			player.drop(stack, false);
+			ItemEntity item = new ItemEntity(player.level(), player.getX(), player.getY() + 0.5, player.getZ(), stack);
+			item.setNoPickUpDelay();
+			player.level().addFreshEntity(item);
 		}
 	}
 

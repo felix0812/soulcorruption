@@ -17,7 +17,10 @@ jobs:
           java-version: 25
       - uses: gradle/actions/setup-gradle@v4
       - name: Build
-        run: ./gradlew build --stacktrace --no-daemon
+        run: ./gradlew build --no-daemon
+      - name: API probe (temporary)
+        if: failure()
+        run: .github/probe/probe.sh
       - uses: actions/upload-artifact@v4
         with:
           name: soulcorruption
