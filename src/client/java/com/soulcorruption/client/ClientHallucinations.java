@@ -12,6 +12,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -32,7 +33,7 @@ public final class ClientHallucinations {
 	}
 
 	private static final List<EntityType<?>> MOB_TYPES = List.of(
-			EntityType.ZOMBIE, EntityType.SKELETON, EntityType.CREEPER, EntityType.ENDERMAN, EntityType.WITCH);
+			EntityTypes.ZOMBIE, EntityTypes.SKELETON, EntityTypes.CREEPER, EntityTypes.ENDERMAN, EntityTypes.WITCH);
 
 	private ClientHallucinations() {
 	}

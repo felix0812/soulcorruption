@@ -5,7 +5,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
@@ -21,10 +21,10 @@ public class SoulShopMenu extends ChestMenu {
 	}
 
 	@Override
-	public void clicked(int slotId, int button, ClickType clickType, Player player) {
+	public void clicked(int slotId, int button, ContainerInput input, Player player) {
 		// Bewusst kein super.clicked(): Items im Shop dürfen nicht verschoben werden.
 		if (player instanceof ServerPlayer serverPlayer && slotId >= 0 && slotId < SIZE
-				&& clickType == ClickType.PICKUP) {
+				&& input == ContainerInput.PICKUP) {
 			SoulShop.purchase(serverPlayer, slotId);
 		}
 		// Client-Vorhersage zurücksetzen, damit keine "Geister-Items" entstehen.

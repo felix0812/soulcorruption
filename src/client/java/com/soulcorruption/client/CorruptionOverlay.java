@@ -31,7 +31,7 @@ public final class CorruptionOverlay {
 
 	static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.player == null || mc.options.hideGui) {
+		if (mc.player == null) {
 			return;
 		}
 
