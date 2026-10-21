@@ -140,7 +140,7 @@ public final class MinionManager {
 		return target != null
 				&& target.isAlive()
 				&& target != owner
-				&& !target.getTags().contains(MINION_TAG)
+				&& !target.entityTags().contains(MINION_TAG)
 				&& target.level() == vex.level()
 				&& target.distanceToSqr(owner) < 32 * 32;
 	}
@@ -148,7 +148,7 @@ public final class MinionManager {
 	/** Geister verletzen niemals ihren Beschwörer. */
 	public boolean allowDamage(LivingEntity entity, DamageSource source, float amount) {
 		Entity attacker = source.getEntity();
-		if (attacker != null && attacker.getTags().contains(MINION_TAG)) {
+		if (attacker != null && attacker.entityTags().contains(MINION_TAG)) {
 			Minion minion = minions.get(attacker.getUUID());
 			return minion == null || !minion.owner().equals(entity.getUUID());
 		}
@@ -157,7 +157,7 @@ public final class MinionManager {
 
 	/** Entfernt Geister, die nach einem Neustart ohne Besitzer geladen werden. */
 	public void onEntityLoad(Entity entity, ServerLevel level) {
-		if (entity.getTags().contains(MINION_TAG) && !minions.containsKey(entity.getUUID())) {
+		if (entity.entityTags().contains(MINION_TAG) && !minions.containsKey(entity.getUUID())) {
 			entity.discard();
 		}
 	}

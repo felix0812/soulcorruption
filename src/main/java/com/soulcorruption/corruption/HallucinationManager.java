@@ -80,7 +80,7 @@ final class HallucinationManager {
 			double x = player.getX() + (random.nextDouble() - 0.5) * 2 * range;
 			double y = player.getY() + random.nextInt(3) - 1;
 			double z = player.getZ() + (random.nextDouble() - 0.5) * 2 * range;
-			if (player.randomTeleport(x, y, z, true)) {
+			if (player.randomTeleport(x, y, z, true, state -> true)) {
 				ModNetworking.sendHallucination(player, HallucinationPayload.Kind.SCREEN_FLASH);
 				return;
 			}

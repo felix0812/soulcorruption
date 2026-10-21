@@ -16,8 +16,8 @@ public final class ModNetworking {
 	}
 
 	public static void registerPayloads() {
-		PayloadTypeRegistry.playS2C().register(SoulSyncPayload.TYPE, SoulSyncPayload.CODEC);
-		PayloadTypeRegistry.playS2C().register(HallucinationPayload.TYPE, HallucinationPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(SoulSyncPayload.TYPE, SoulSyncPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(HallucinationPayload.TYPE, HallucinationPayload.CODEC);
 	}
 
 	public static void sendSync(ServerPlayer player, int souls, int corruption, int tierIndex, CorruptionTier tier) {

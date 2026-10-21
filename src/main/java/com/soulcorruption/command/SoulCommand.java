@@ -177,7 +177,7 @@ public final class SoulCommand {
 	private static Component tierName(CorruptionTier tier) {
 		ChatFormatting color = ChatFormatting.GRAY;
 		for (ChatFormatting formatting : ChatFormatting.values()) {
-			if (formatting.isColor() && formatting.name().equalsIgnoreCase(tier.color)) {
+			if (formatting.name().equalsIgnoreCase(tier.color)) {
 				color = formatting;
 			}
 		}

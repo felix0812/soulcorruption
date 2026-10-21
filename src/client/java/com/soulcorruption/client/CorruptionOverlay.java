@@ -2,7 +2,7 @@ package com.soulcorruption.client;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.Mth;
 
 /**
@@ -29,7 +29,7 @@ public final class CorruptionOverlay {
 		smoothedStrength = Mth.lerp(0.05f, smoothedStrength, ClientSoulState.overlayStrength());
 	}
 
-	static void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
+	static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.player == null || mc.options.hideGui) {
 			return;
