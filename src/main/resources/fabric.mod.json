@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "soulcorruption",
+	"version": "${version}",
+	"name": "SoulCorruption",
+	"description": "Ein dunkles Seelen-System: Stiehl Seelen, höre sie flüstern – und lass dich von ihnen korrumpieren.",
+	"authors": ["felix0812"],
+	"contact": {
+		"sources": "https://github.com/felix0812/soulcorruption"
+	},
+	"license": "All-Rights-Reserved",
+	"icon": "assets/soulcorruption/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["com.soulcorruption.SoulCorruption"],
+		"client": ["com.soulcorruption.client.SoulCorruptionClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
