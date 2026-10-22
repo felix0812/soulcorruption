@@ -20,6 +20,7 @@ func _ready() -> void:
 	_slider(grid, "Sichtfeld (FOV)", "graphics.fov", 55.0, 100.0, 1.0)
 	_slider(grid, "Helligkeit", "graphics.brightness", 0.5, 2.0, 0.05)
 	_slider(grid, "3D-Auflösung (Leistung)", "graphics.render_scale", 0.5, 1.0, 0.05)
+	_choice(grid, "Renderer (nach Neustart)", "graphics.renderer", {"auto": "Automatisch", "vulkan": "Vulkan (beste Grafik)", "opengl": "OpenGL (kompatibel)"})
 	_slider(grid, "Partikelmenge", "graphics.particles", 0.0, 2.0, 0.1)
 	_check(grid, "Vollbild", "graphics.fullscreen")
 	_check(grid, "Maus Y invertieren", "controls.invert_y")
@@ -57,6 +58,23 @@ func _slider(grid: GridContainer, title: String, path: String, lo: float, hi: fl
 		_apply())
 	h.add_child(s)
 	h.add_child(val)
+
+
+func _choice(grid: GridContainer, title: String, path: String, options: Dictionary) -> void:
+	grid.add_child(UIKit.label(title, 18))
+	var o := OptionButton.new()
+	o.custom_minimum_size = Vector2(260, 30)
+	var keys := options.keys()
+	for i in keys.size():
+		o.add_item(options[keys[i]], i)
+		if keys[i] == Cfg.gs(path):
+			o.select(i)
+	o.item_selected.connect(func(i: int):
+		Cfg.set_value(path, keys[i])
+		if keys[i] != "auto":
+			Cfg.set_value("graphics.auto_compat", false)
+		_apply())
+	grid.add_child(o)
 
 
 func _check(grid: GridContainer, title: String, path: String) -> void:

@@ -9,11 +9,13 @@ var menu: MainMenu
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	print("GPU: %s (%s), API %s, Renderer %s" % [RenderingServer.get_video_adapter_name(), RenderingServer.get_video_adapter_vendor(), RenderingServer.get_video_adapter_api_version(), RenderingServer.get_current_rendering_method()])
+	if RendererGuard.check(get_tree()):
+		return
 	add_to_group("settings_listeners")
 	_setup_input()
 	apply_settings()
 	get_tree().root.theme = UIKit.theme()
-	print("GPU: %s (%s), API %s" % [RenderingServer.get_video_adapter_name(), RenderingServer.get_video_adapter_vendor(), RenderingServer.get_video_adapter_api_version()])
 	var args := OS.get_cmdline_user_args()
 	if "--autotest" in args:
 		var t = load("res://scripts/autotest.gd").new()

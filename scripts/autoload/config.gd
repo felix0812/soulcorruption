@@ -138,6 +138,8 @@ static func defaults() -> Dictionary:
 			"fov": 75.0,
 			"brightness": 1.0,
 			"render_scale": 1.0,
+			"renderer": "auto",
+			"auto_compat": false,
 			"glow": true,
 			"fog": true,
 			"volumetric_fog": false,
