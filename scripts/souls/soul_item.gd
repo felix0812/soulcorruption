@@ -17,6 +17,9 @@ const KIND_LABELS := {
 	"wraith": "Irrgeist",
 	"warden": "Grabwächter",
 	"knight": "Gefallener Ritter",
+	"mage": "Knochenmagier",
+	"bomber": "Knochenbomber",
+	"bulwark": "Schildträger",
 }
 
 var id := 0

@@ -16,6 +16,7 @@ var waves: WaveDirector
 var menu_mode := true
 var run_kills := 0
 var run_stolen := 0
+var relics: Dictionary = {}  # Relic id -> stacks (this run only).
 var _menu_cam: Camera3D
 var _menu_t := 0.0
 
@@ -65,7 +66,9 @@ func start_run(p_hud) -> void:
 	waves = WaveDirector.new()
 	waves.world = self
 	add_child(waves)
-	waves.wave_started.connect(func(w): hud.announce("Welle %d" % w, Color(0.85, 0.75, 1.0)))
+	waves.wave_started.connect(func(w):
+		if waves.event == "":
+			hud.announce("Welle %d" % w, Color(0.85, 0.75, 1.0)))
 	waves.wave_cleared.connect(_on_wave_cleared)
 	corruption.stage_changed.connect(_on_stage_changed)
 	Souls.add_stat("runs")
@@ -82,6 +85,17 @@ func on_enemy_killed(e: Enemy) -> void:
 	run_kills += 1
 	Souls.add_stat("kills")
 	var chance := Cfg.gf("souls.strong_enemy_soul_chance") if e.is_strong() else Cfg.gf("souls.weak_enemy_soul_chance")
+	if not e.is_strong():
+		chance += 0.15 * relic("gier")
+		match waves.event if waves else "":
+			"blutmond":
+				chance *= 2.0
+			"seelensturm":
+				chance = 1.0
+			"nebelnacht":
+				chance *= 1.5
+	if relic("zorn") > 0:
+		_death_blast(e.global_position, player.damage() * 0.4 * relic("zorn"))
 	var count := Cfg.gi("souls.boss_soul_count") if e.is_boss() else 1
 	hud.chat_line("[color=#8a8a9a]☠ %s:[/color] [i]„%s“[/i]" % [e.display_name(), e.victim.get("last_words", "…")])
 	if randf() > chance:
@@ -96,6 +110,27 @@ func on_enemy_killed(e: Enemy) -> void:
 		soul.wave = waves.wave if waves else 0
 		var offset := Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)) if count > 1 else Vector3.ZERO
 		spawn_orb(soul, e.global_position + Vector3(0, 1.2, 0) + offset, Cfg.gf("souls.orb_lifetime_sec"))
+
+
+## Relic "Totenzorn": the dead burst and hurt their neighbours.
+func _death_blast(pos: Vector3, amount: float) -> void:
+	Build.burst(self, pos + Vector3(0, 0.8, 0), Color(1.0, 0.45, 0.1), 30, 6.0, 0.35, 0.6)
+	Props.blast(get_tree(), pos, 4.0, 5.0)
+	for o in enemies():
+		if o.global_position.distance_to(pos) < 3.0:
+			o.take_hit(amount, pos, 4.0)
+
+
+func relic(id: String) -> int:
+	return int(relics.get(id, 0))
+
+
+func add_relic(id: String) -> void:
+	relics[id] = relic(id) + 1
+	var r: Dictionary = Relics.POOL[id]
+	hud.chat_line("[color=#%s]Relikt erhalten: [b]%s[/b] · %s[/color]" % [(r.color as Color).to_html(false), Relics.title(id, relics[id]), r.desc])
+	Sfx.play("buy", -2.0)
+	player.recompute_stats()
 
 
 func spawn_orb(soul: SoulItem, pos: Vector3, lifetime: float) -> SoulOrb:
@@ -149,6 +184,8 @@ func _respawn() -> void:
 
 func _on_wave_cleared(w: int) -> void:
 	hud.announce("Welle %d überstanden" % w, Color(0.6, 1.0, 0.8))
+	if Cfg.gb("waves.relic_choice", true) and not player.dead and not Relics.offer(relics).is_empty():
+		hud.open(hud.relic_picker)
 	hud.chat_line("[color=#7fd]Der Altar ruft. [E] am Altar oder [B] öffnet den Seelenhandel. [F] ruft die nächste Welle.[/color]")
 
 

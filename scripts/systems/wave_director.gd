@@ -16,6 +16,14 @@ var _queue: Array[String] = []
 var _spawn_cd := 0.0
 var _alive: Array[Enemy] = []
 var boss: Enemy
+var event := ""  # Special rule of the current wave (see EVENTS).
+
+const EVENTS := {
+	"blutmond": {"name": "Blutmond", "desc": "Die Toten sind rasend: schneller und stärker. Dafür fallen doppelt so viele Seelen.", "color": Color(1.0, 0.25, 0.25)},
+	"seelensturm": {"name": "Seelensturm", "desc": "Jeder Gefallene lässt seine Seele zurück, aber sie sind zäher.", "color": Color(0.5, 0.9, 1.0)},
+	"nebelnacht": {"name": "Nebelnacht", "desc": "Dichter Nebel. Irrgeister jagen dich aus dem Grau.", "color": Color(0.75, 0.75, 0.85)},
+	"knochenregen": {"name": "Knochenregen", "desc": "Die Gräber spucken Knochenbomber aus. Halte Abstand!", "color": Color(1.0, 0.6, 0.2)},
+}
 
 
 func start() -> void:
@@ -59,11 +67,25 @@ func _begin_wave() -> void:
 	wave += 1
 	print("Welle %d beginnt (Seelen: %d, Knoten: %d)" % [wave, Souls.total(), Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
 	phase = Phase.COMBAT
+	_pick_event()
 	_queue = composition(wave)
 	_spawn_cd = 0.5
 	world.arena.set_altar_active(false)
 	Sfx.play("wave", -2.0, 0.0)
 	wave_started.emit(wave)
+
+
+func _pick_event() -> void:
+	event = ""
+	var every := Cfg.gi("waves.boss_every")
+	var boss_wave := every > 0 and wave % every == 0
+	if wave >= Cfg.gi("waves.events_from_wave", 3) and not boss_wave and randf() < Cfg.gf("waves.event_chance", 0.45):
+		event = EVENTS.keys().pick_random()
+	world.arena.set_event(event)
+	if event != "" and world.hud:
+		var e: Dictionary = EVENTS[event]
+		world.hud.announce("Welle %d · %s" % [wave, e.name], e.color)
+		world.hud.chat_line("[color=#%s][b]%s:[/b] %s[/color]" % [(e.color as Color).to_html(false), e.name, e.desc])
 
 
 ## Which enemies a wave consists of.
@@ -76,6 +98,22 @@ func composition(w: int) -> Array[String]:
 		list.append("warden")
 	for i in wraiths:
 		list.append("wraith")
+	var bombers := 0 if w < 2 else 1 + w / 3
+	var mages := 0 if w < 3 else 1 + (w - 3) / 3
+	var bulwarks := 0 if w < 4 else 1 + (w - 4) / 3
+	match event:
+		"knochenregen":
+			bombers += 4
+		"nebelnacht":
+			wraiths += 3
+			for i in 3:
+				list.append("wraith")
+	for i in bombers:
+		list.append("bomber")
+	for i in mages:
+		list.append("mage")
+	for i in bulwarks:
+		list.append("bulwark")
 	while list.size() < count:
 		list.append("hollow")
 	list.shuffle()
@@ -110,6 +148,8 @@ func _end_wave() -> void:
 	phase = Phase.BREAK
 	break_left = Cfg.gf("waves.intermission_sec")
 	boss = null
+	event = ""
+	world.arena.set_event("")
 	Souls.record_wave(wave)
 	world.arena.set_altar_active(true)
 	wave_cleared.emit(wave)

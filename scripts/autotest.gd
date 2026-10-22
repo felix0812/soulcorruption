@@ -32,8 +32,18 @@ func _soak() -> void:
 	await wait(1.0)
 	var w: World = main.world
 	var t := 0.0
-	while t < 150.0 and w.waves.wave < 6:
+	var shot_waves := {}
+	while t < 200.0 and w.waves.wave < 7:
 		w.player.invulnerable = 99.0
+		if main.hud.open_panel == main.hud.relic_picker:
+			main.hud.relic_picker.choose(main.hud.relic_picker._offer[0])
+		if w.waves.phase == WaveDirector.Phase.COMBAT and w.waves.wave >= 4 and not shot_waves.has(w.waves.wave) and w.enemies().size() >= 5:
+			shot_waves[w.waves.wave] = true
+			var e0 = w.enemies()[0]
+			w.player.global_position = e0.global_position + Vector3(0, 0.2, 6.0)
+			w.player.cam_yaw = 0.0
+			await wait(0.6)
+			await shot("soak_wave%d" % w.waves.wave)
 		if w.waves.phase == WaveDirector.Phase.BREAK:
 			w.player.global_position = Vector3(0, 0.2, 3)  # Wait in the safe zone.
 		else:
@@ -45,7 +55,7 @@ func _soak() -> void:
 					e.take_hit(40.0, w.player.global_position, 3.0)
 		await wait(0.5)
 		t += 0.5
-	print("soak reached wave %d after %.0fs, nodes=%d" % [w.waves.wave, t, Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
+	print("soak reached wave %d after %.0fs, nodes=%d, relics=%s" % [w.waves.wave, t, Performance.get_monitor(Performance.OBJECT_NODE_COUNT), w.relics])
 	get_tree().quit(0 if w.waves.wave >= 4 else 1)
 
 
@@ -143,6 +153,7 @@ func _run() -> void:
 	print("== SoulCorruption autotest ==")
 	print("data dir: ", Cfg.data_dir)
 	var original_config: Dictionary = Cfg.data.duplicate(true)
+	Cfg.set_value("waves.relic_choice", false)  # Tested explicitly below.
 	Cfg.set_value("zero_souls.mode", "debuff")
 	_fresh_profile()
 	var start := Cfg.gi("souls.start_count")
@@ -292,6 +303,82 @@ func _run() -> void:
 	var ir := Vector2(intruder.global_position.x, intruder.global_position.z).length()
 	check(ir >= Arena.safe_radius(), "enemies cannot enter the safe zone (r=%.1f)" % ir)
 	intruder.take_hit(99999.0, w.player.global_position, 1.0)
+
+	# New enemy types (hallucinations off so the player stays put).
+	w.hallucinations.process_mode = Node.PROCESS_MODE_DISABLED
+	for m in get_tree().get_nodes_in_group("minions"):
+		m.depart()
+	var spot := Vector3(14, 0.2, 14)
+	var mage := Enemy.new()
+	mage.setup("mage", 3, w)
+	mage.position = Vector3(14, 0, 4)
+	w.add_child(mage)
+	var mage_hit := false
+	for i in 20:
+		w.player.global_position = spot
+		w.player.invulnerable = 0.0
+		w.player.hp = w.player.max_hp
+		await wait(0.5)
+		if w.player.hp < w.player.max_hp:
+			mage_hit = true
+			break
+	check(mage_hit, "skeleton mage hits with cursed bolts")
+	mage.take_hit(99999.0, w.player.global_position, 1.0)
+	var bulwark := Enemy.new()
+	bulwark.setup("bulwark", 4, w)
+	bulwark.position = Vector3(14, 0, 10)
+	w.add_child(bulwark)
+	for i in 20:
+		await wait(0.25)
+		if bulwark.state != Enemy.State.RISING:
+			break
+	bulwark._set_state(Enemy.State.RECOVER)
+	bulwark.look_at(Vector3(14, bulwark.global_position.y, 14))
+	var bhp: float = bulwark.hp
+	bulwark.take_hit(50.0, Vector3(14, 0, 14), 1.0)
+	var front_loss := bhp - bulwark.hp
+	bhp = bulwark.hp
+	bulwark.take_hit(50.0, bulwark.global_position + bulwark.global_transform.basis.z * 2.0, 1.0)
+	var back_loss := bhp - bulwark.hp
+	check(front_loss < 15.0 and back_loss >= 49.0, "shield bearer blocks from the front (%.0f vs %.0f)" % [front_loss, back_loss])
+	var bomber := Enemy.new()
+	bomber.setup("bomber", 4, w)
+	bomber.position = Vector3(14, 0, 11.5)
+	w.add_child(bomber)
+	var bulwark_hp: float = bulwark.hp
+	var blast_hit := false
+	for i in 25:
+		w.player.global_position = spot
+		w.player.invulnerable = 0.0
+		w.player.hp = w.player.max_hp
+		await wait(0.3)
+		if bomber._exploded:
+			blast_hit = w.player.hp < w.player.max_hp
+			break
+	check(bomber._exploded, "bone bomber explodes")
+	check(blast_hit, "explosion hurts the player")
+	check(not is_instance_valid(bulwark) or bulwark.hp < bulwark_hp or bulwark.state == Enemy.State.DYING, "explosion hurts other skeletons")
+	if is_instance_valid(bulwark):
+		bulwark.take_hit(99999.0, bulwark.global_position + bulwark.global_transform.basis.z, 1.0)
+	w.hallucinations.process_mode = Node.PROCESS_MODE_INHERIT
+	w.player.hp = w.player.max_hp
+
+	# Relics.
+	var dmg_before: float = w.player.damage()
+	main.hud.open(main.hud.relic_picker)
+	await wait(0.2)
+	check(get_tree().paused and main.hud.relic_picker.visible, "relic choice opens and pauses")
+	check(main.hud.relic_picker.cards.get_child_count() == 3, "three relics offered")
+	main.hud.relic_picker.choose("klinge")
+	check(not get_tree().paused, "choosing a relic resumes the game")
+	check(w.relic("klinge") == 1 and w.player.damage() > dmg_before * 1.15, "relic changes the run (damage)")
+
+	# Wave events.
+	w.waves.event = "knochenregen"
+	check(w.waves.composition(5).count("bomber") >= 5, "bone rain event spawns bombers")
+	w.waves.event = ""
+	w.arena.set_event("blutmond")
+	w.arena.set_event("")
 
 	# Death: lose souls, respawn.
 	w.player.global_position = Vector3(10, 0.2, 10)

@@ -65,8 +65,9 @@ func _physics_process(delta: float) -> void:
 		return
 	var target: Vector3 = player.global_position + Vector3(0, 1.0, 0)
 	var d := global_position.distance_to(target)
-	if d < MAGNET_DIST:
-		var pull := (target - global_position).normalized() * (MAGNET_DIST - d + 1.0) * 2.5 * delta
+	var magnet: float = MAGNET_DIST * (1.0 + 0.9 * (world.relic("magnet") if world and world.has_method("relic") else 0))
+	if d < magnet:
+		var pull: Vector3 = (target - global_position).normalized() * (magnet - d + 1.0) * 2.5 * delta
 		global_position += pull
 		_base_y = position.y - 0.15 * sin(_t * 2.2)
 	if d < PICKUP_DIST:

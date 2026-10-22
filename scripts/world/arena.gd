@@ -19,6 +19,8 @@ var safe_ring: MeshInstance3D
 var spawn_glows: Array[OmniLight3D] = []
 var _base_fog := Color(0.2, 0.16, 0.28)
 var _base_ambient := Color(0.5, 0.48, 0.65)
+var _event_fog := 0.0
+var _event_tint := Color(0, 0, 0, 0)
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
 var _flames: Array[OmniLight3D] = []
@@ -134,8 +136,8 @@ func set_corruption_tint(amount: float) -> void:
 	if env == null:
 		return
 	var a := clampf(amount, 0.0, 1.0)
-	env.fog_light_color = _base_fog.lerp(Color(0.35, 0.05, 0.12), a)
-	env.fog_density = 0.011 + 0.016 * a
+	env.fog_light_color = _base_fog.lerp(Color(0.35, 0.05, 0.12), a).lerp(Color(_event_tint, 1.0), _event_tint.a)
+	env.fog_density = 0.011 + 0.016 * a + _event_fog
 	env.adjustment_saturation = 1.0 - 0.3 * a
 	env.ambient_light_color = _base_ambient.lerp(Color(0.6, 0.35, 0.45), a)
 
@@ -348,6 +350,27 @@ func _build_altar() -> void:
 			"spread": 8.0, "size": 0.18, "color": Color(SAFE_COLOR, 0.8), "color_end": Color(0.3, 0.5, 1.0, 0.0), "radius": 1.6,
 			"direction": Vector3.UP,
 		})
+
+
+## Wave events change the mood of the graveyard.
+func set_event(id: String) -> void:
+	var moon_col := Color(0.75, 0.78, 1.0)
+	_event_fog = 0.0
+	_event_tint = Color(0, 0, 0, 0)
+	match id:
+		"blutmond":
+			moon_col = Color(1.0, 0.35, 0.3)
+			_event_tint = Color(0.45, 0.05, 0.05, 0.6)
+		"seelensturm":
+			moon_col = Color(0.55, 0.9, 1.0)
+			_event_tint = Color(0.1, 0.35, 0.5, 0.5)
+		"nebelnacht":
+			_event_fog = 0.035
+			_event_tint = Color(0.5, 0.5, 0.55, 0.6)
+		"knochenregen":
+			moon_col = Color(1.0, 0.75, 0.5)
+			_event_tint = Color(0.35, 0.2, 0.1, 0.4)
+	create_tween().tween_property(moon, "light_color", moon_col, 1.5)
 
 
 ## Altar glows brighter during the break between waves (shop is "open").

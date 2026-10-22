@@ -117,6 +117,9 @@ static func defaults() -> Dictionary:
 			"hp_scale_per_wave": 0.12,
 			"damage_scale_per_wave": 0.06,
 			"boss_every": 5,
+			"events_from_wave": 3,
+			"event_chance": 0.45,
+			"relic_choice": true,
 		},
 		"player": {
 			"name": "Wanderer",

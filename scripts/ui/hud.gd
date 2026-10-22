@@ -38,6 +38,7 @@ var shop: ShopUI
 var console: ConsoleUI
 var pause_menu: PauseUI
 var open_panel: Control = null
+var relic_picker: RelicPicker
 
 var _chat_lines: Array = []  # [text, time]
 var _clock := 0.0
@@ -67,7 +68,9 @@ func _ready() -> void:
 	console.hud = self
 	pause_menu = PauseUI.new()
 	pause_menu.hud = self
-	for p in [inventory, shop, console, pause_menu]:
+	relic_picker = RelicPicker.new()
+	relic_picker.hud = self
+	for p in [inventory, shop, console, pause_menu, relic_picker]:
 		p.visible = false
 		root.add_child(p)
 
@@ -284,6 +287,14 @@ func _update_status() -> void:
 	if absf(dm - 1.0) > 0.01:
 		lines.append("[color=#%s]Schaden ×%.2f · Tempo ×%.2f · Lebensraub %d%%[/color]" % [
 			c.stage_color().to_html(false), dm, c.speed_mult(), int(Cfg.stage_value("corruption.lifesteal", c.stage, 0.0) * 100.0)])
+	if not world.relics.is_empty():
+		var names: Array[String] = []
+		for id in world.relics:
+			names.append(Relics.title(id, world.relics[id]))
+		lines.append("[color=#ffd98a]Relikte: %s[/color]" % ", ".join(names))
+	if world.waves and world.waves.event != "":
+		var ev: Dictionary = WaveDirector.EVENTS[world.waves.event]
+		lines.append("[color=#%s]%s[/color]" % [(ev.color as Color).to_html(false), ev.name])
 	status_label.text = "\n".join(lines)
 
 
@@ -484,6 +495,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if open_panel == console:
 		return  # The console's LineEdit handles its own keys.
+	if open_panel == relic_picker:
+		return  # A relic has to be chosen.
 	if event.is_action_pressed("pause"):
 		if open_panel:
 			_close_panel()

@@ -25,19 +25,21 @@ func _ready() -> void:
 	max_hp = Cfg.gf("minions.hp")
 	hp = max_hp
 	life = Cfg.gf("minions.duration_sec")
+	var eternal: int = world.relic("geister") if world else 0
+	life *= 1.0 + 0.5 * eternal
 	var stage: int = world.corruption.stage if world and world.corruption else 0
-	dmg = Cfg.gf("minions.damage") * (1.0 + 0.1 * stage)
+	dmg = Cfg.gf("minions.damage") * (1.0 + 0.1 * stage) * (1.0 + 0.25 * (world.relic("geister") if world else 0))
 	_orbit = randf() * TAU
 	var col := soul.color()
 	_mat = Build.soul_mat(col.lerp(Color.WHITE, 0.4), col, 1.6, 0.7)
 	_body = Node3D.new()
 	add_child(_body)
 	# The ghost wears the body of the victim, rendered as translucent soul-stuff.
-	var models := {"hollow": "Skeleton_Minion.glb", "wraith": "Skeleton_Rogue.glb", "warden": "Skeleton_Warrior.glb", "knight": "Skeleton_Warrior.glb", "ahne": "Skeleton_Mage.glb"}
+	var models := {"hollow": "Skeleton_Minion.glb", "wraith": "Skeleton_Rogue.glb", "warden": "Skeleton_Warrior.glb", "knight": "Skeleton_Warrior.glb", "ahne": "Skeleton_Mage.glb", "mage": "Skeleton_Mage.glb", "bomber": "Skeleton_Minion.glb", "bulwark": "Skeleton_Warrior.glb"}
 	_model = CharacterModel.new()
 	_body.add_child(_model)
 	_model.setup(models.get(soul.kind, "Skeleton_Mage.glb"), 0.8)
-	if soul.kind == "ahne":
+	if soul.kind == "ahne" or soul.kind == "mage":
 		_model.attach("Skeleton_Staff.gltf", "handslot.r")
 	else:
 		_model.attach("Skeleton_Blade.gltf", "handslot.r")

@@ -27,7 +27,22 @@ const KINDS := {
 		"model": "Skeleton_Warrior.glb", "eye": Color(1.0, 0.1, 0.2), "windup": 0.8,
 		"walk": "Walking_A", "walk_speed": 1.0, "attacks": ["1H_Melee_Attack_Slice_Horizontal", "1H_Melee_Attack_Chop"],
 		"weapon": "Skeleton_Blade.gltf", "offhand": "Skeleton_Shield_Large_A.gltf", "boss": true},
+	# Keeps its distance and hurls cursed bolts.
+	"mage": {"hp": 40.0, "speed": 2.4, "damage": 11.0, "strong": false, "scale": 0.85, "range": 13.0,
+		"model": "Skeleton_Mage.glb", "eye": Color(1.0, 0.3, 0.6), "windup": 0.75,
+		"walk": "Walking_D_Skeletons", "walk_speed": 1.4, "attacks": ["Spellcast_Shoot"],
+		"weapon": "Skeleton_Staff.gltf", "ranged": true, "keep_dist": 8.0},
+	# Sprints at you and blows itself up (hurts other skeletons too).
+	"bomber": {"hp": 22.0, "speed": 5.6, "damage": 24.0, "strong": false, "scale": 0.7, "range": 1.8,
+		"model": "Skeleton_Minion.glb", "eye": Color(1.0, 0.55, 0.1), "windup": 0.8,
+		"walk": "Running_C", "walk_speed": 1.1, "attacks": ["Cheer"], "explode": true},
+	# Blocks hits from the front: get behind it or let a bomber do the job.
+	"bulwark": {"hp": 120.0, "speed": 2.3, "damage": 16.0, "strong": true, "scale": 1.0, "range": 2.0,
+		"model": "Skeleton_Warrior.glb", "eye": Color(0.5, 0.8, 1.0), "windup": 0.6,
+		"walk": "Walking_B", "walk_speed": 1.0, "attacks": ["1H_Melee_Attack_Chop", "Block_Attack"],
+		"weapon": "Skeleton_Blade.gltf", "offhand": "Skeleton_Shield_Large_A.gltf", "shield": true, "turn": 2.2},
 }
+
 
 var world  # World node
 var kind := "hollow"
@@ -54,6 +69,9 @@ var _flash := 0.0
 var _rise_time := 1.2
 var _last_hit_dir := Vector3.FORWARD
 var _slam_disc: MeshInstance3D
+var _cast_cd := 1.5
+var _exploded := false
+var _strafe := 1.0
 
 
 ## Call before adding to the tree.
@@ -68,6 +86,14 @@ func setup(p_kind: String, wave: int, p_world, phantom := false) -> void:
 	hp = max_hp
 	dmg = spec.damage * dmg_scale
 	speed = spec.speed * randf_range(0.9, 1.1)
+	_strafe = 1.0 if randf() < 0.5 else -1.0
+	match p_world.waves.event if p_world and p_world.waves else "":
+		"blutmond":
+			dmg *= 1.25
+			speed *= 1.2
+		"seelensturm":
+			max_hp *= 1.3
+			hp = max_hp
 	victim = Lore.make_victim(kind)
 
 
@@ -194,7 +220,10 @@ func _physics_process(delta: float) -> void:
 	var move := Vector3.ZERO
 	match state:
 		State.CHASE:
-			if target:
+			if target and spec.get("ranged", false):
+				move = _ranged_move(to_target, dist, delta)
+				body.loop(spec.walk if move.length() > 0.3 else "Idle", spec.walk_speed)
+			elif target:
 				move = to_target.normalized() * speed
 				body.loop(spec.walk, spec.walk_speed)
 				var reach: float = float(spec.range) + _target_radius()
@@ -211,6 +240,9 @@ func _physics_process(delta: float) -> void:
 			eye_light.light_energy = 0.6 + 2.5 * k
 			if target:
 				move = to_target.normalized() * speed * 0.1
+			if spec.get("explode", false):
+				_flash = 0.4 + 0.4 * sin(state_t * 40.0)  # Blinking fuse.
+				hit_overlay.albedo_color = Color(1, 0.5, 0.1, _flash)
 			if state_t >= float(spec.windup):
 				_strike(dist)
 				_set_state(State.RECOVER)
@@ -242,8 +274,11 @@ func _physics_process(delta: float) -> void:
 	_keep_out_of_safe_zone()
 	Props.push_from_slides(self, 1.5 * float(spec.scale))
 	if target and to_target.length() > 0.1 and state != State.SLAM:
-		var yaw := atan2(-to_target.x, -to_target.z)
-		rotation.y = lerp_angle(rotation.y, yaw, 1.0 - exp(-delta * 8.0))
+		var face := to_target
+		if spec.get("ranged", false) and target:
+			face = target.global_position - global_position  # Mages always watch you.
+		var yaw := atan2(-face.x, -face.z)
+		rotation.y = lerp_angle(rotation.y, yaw, 1.0 - exp(-delta * float(spec.get("turn", 8.0))))
 
 
 ## Closest point just outside the safe zone towards `p`.
@@ -308,6 +343,26 @@ func _pick_target() -> void:
 			target = m
 
 
+## Mages hover at a distance, strafe and cast when the cooldown is ready.
+func _ranged_move(to_target: Vector3, dist: float, delta: float) -> Vector3:
+	_cast_cd -= delta
+	var keep: float = spec.keep_dist
+	var dir := to_target.normalized()
+	var move := Vector3.ZERO
+	if dist > keep + 3.0:
+		move = dir * speed
+	elif dist < keep - 2.0:
+		move = -dir * speed
+	else:
+		move = Vector3(-dir.z, 0, dir.x) * _strafe * speed * 0.6
+		if randf() < delta * 0.3:
+			_strafe = -_strafe
+	if dist < float(spec.range) and _cast_cd <= 0.0:
+		_cast_cd = randf_range(2.6, 3.8)
+		_start_windup()
+	return move
+
+
 func _target_radius() -> float:
 	if target and target.has_method("radius"):
 		return target.radius()
@@ -315,10 +370,27 @@ func _target_radius() -> float:
 
 
 func _strike(dist: float) -> void:
+	if spec.get("explode", false):
+		if is_phantom:
+			vanish()
+		else:
+			explode()
+		return
 	if target == null:
 		return
 	var reach: float = float(spec.range) + _target_radius() + 0.6
 	if dist > reach:
+		return
+	if spec.get("ranged", false) and not is_phantom:
+		var bolt := EnemyBolt.new()
+		bolt.world = world
+		bolt.damage = dmg
+		var origin := global_position + Vector3(0, 1.5 * float(spec.scale), 0) + -global_transform.basis.z * 0.6
+		var aim: Vector3 = target.global_position + Vector3(0, 1.0, 0)
+		bolt.direction = (aim - origin).normalized()
+		world.add_child(bolt)
+		bolt.global_position = origin
+		Sfx.play_at("bolt", global_position, -4.0)
 		return
 	if is_phantom:
 		# The hallucination "hits" and dissolves - it was never there.
@@ -377,6 +449,17 @@ func take_hit(amount: float, from_pos: Vector3, knockback: float) -> void:
 	if is_phantom:
 		vanish()
 		return
+	if spec.get("shield", false) and state != State.RISING and state != State.WINDUP:
+		var to_attacker := from_pos - global_position
+		to_attacker.y = 0.0
+		if to_attacker.length() > 0.01 and (-global_transform.basis.z).dot(to_attacker.normalized()) > 0.35:
+			# Blocked by the big shield.
+			amount *= 0.15
+			knockback *= 0.2
+			body.once("Block_Hit", 1.6)
+			Sfx.play_at("hit", global_position, -4.0, 0.5)
+			Build.burst(world, global_position + Vector3(0, 1.2, 0) - global_transform.basis.z * 0.6, Color(0.6, 0.8, 1.0), 14, 4.0, 0.15, 0.3)
+			Build.float_text(world, global_position + Vector3(0, 2.6, 0), "Geblockt", Color(0.6, 0.8, 1.0), 30, 0.7, 0.8)
 	hp -= amount
 	_flash = 1.0
 	var away := global_position - from_pos
@@ -398,7 +481,34 @@ func take_hit(amount: float, from_pos: Vector3, knockback: float) -> void:
 		body.once("Hit_A" if randf() < 0.5 else "Hit_B", 1.6)
 
 
+## Bombers go off when their fuse ends or when they are killed.
+func explode() -> void:
+	if _exploded:
+		return
+	_exploded = true
+	var radius_m := 3.4
+	Build.burst(world, global_position + Vector3(0, 0.8, 0), Color(1.0, 0.5, 0.1), 70, 9.0, 0.5, 0.8)
+	Build.burst(world, global_position + Vector3(0, 0.5, 0), Color(0.3, 0.25, 0.2, 0.8), 30, 4.0, 0.8, 1.2)
+	Sfx.play_at("hit", global_position, 6.0, -0.5)
+	Props.blast(get_tree(), global_position, 6.0, 9.0)
+	var player = world.player
+	if player and not player.dead and player.global_position.distance_to(global_position) < radius_m:
+		player.take_damage(dmg, global_position)
+		player.shake = maxf(player.shake, 0.7)
+	for m in get_tree().get_nodes_in_group("minions"):
+		if (m as Node3D).global_position.distance_to(global_position) < radius_m:
+			m.take_damage(dmg, global_position)
+	for e in world.enemies():
+		if e != self and e.global_position.distance_to(global_position) < radius_m:
+			e.take_hit(dmg * 1.5, global_position, 8.0)
+	if state != State.DYING:
+		hp = 0.0
+		_die()
+
+
 func _die() -> void:
+	if spec.get("explode", false) and not _exploded:
+		explode.call_deferred()
 	_set_state(State.DYING)
 	remove_from_group("enemies")
 	collision_layer = 0

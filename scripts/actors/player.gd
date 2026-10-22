@@ -122,19 +122,23 @@ func recompute_stats() -> void:
 	hp_changed.emit(hp, max_hp)
 
 
+func _relic(id: String) -> int:
+	return world.relic(id) if world else 0
+
+
 func _stage() -> int:
 	return world.corruption.stage if world and world.corruption else 0
 
 
 func damage() -> float:
-	var d := Cfg.gf("player.damage") * (1.0 + 0.15 * Souls.upgrade("blade"))
+	var d := Cfg.gf("player.damage") * (1.0 + 0.15 * Souls.upgrade("blade")) * (1.0 + 0.2 * _relic("klinge"))
 	if world and world.corruption:
 		d *= world.corruption.damage_mult()
 	return d
 
 
 func move_speed() -> float:
-	var s := Cfg.gf("player.move_speed")
+	var s := Cfg.gf("player.move_speed") * (1.0 + 0.12 * _relic("sohlen"))
 	if world and world.corruption:
 		s *= world.corruption.speed_mult()
 	return s
@@ -224,8 +228,9 @@ func _update_regen(delta: float) -> void:
 			hp = maxf(max_hp * 0.25, hp - drain * delta)
 			hp_changed.emit(hp, max_hp)
 		return
-	if _time - last_hurt_time > 4.0 and hp < max_hp:
-		hp = minf(max_hp, hp + Cfg.gf("player.regen_per_sec") * delta)
+	var calm := 4.0 - 0.8 * _relic("ruhe")
+	if _time - last_hurt_time > calm and hp < max_hp:
+		hp = minf(max_hp, hp + (Cfg.gf("player.regen_per_sec") + 1.5 * _relic("ruhe")) * delta)
 		hp_changed.emit(hp, max_hp)
 
 
@@ -288,6 +293,8 @@ func _resolve_melee() -> void:
 		e.take_hit(damage(), global_position, 6.0)
 		hit_any = true
 		_lifesteal(damage())
+		if _relic("zahn") > 0:
+			heal(damage() * 0.06 * _relic("zahn"))
 	Props.swing(get_tree(), global_position, fwd, ATTACK_RANGE + 0.4, 4.5)
 	if hit_any:
 		shake = maxf(shake, 0.35)
@@ -309,7 +316,7 @@ func on_bolt_hit(amount: float) -> void:
 func _fire_bolt() -> void:
 	if bolt_cd > 0.0:
 		return
-	bolt_cd = Cfg.gf("player.bolt_cooldown_sec") * pow(0.92, Souls.upgrade("bolt"))
+	bolt_cd = Cfg.gf("player.bolt_cooldown_sec") * pow(0.92, Souls.upgrade("bolt")) * pow(0.8, _relic("feuer"))
 	var origin := global_position + Vector3(0, 1.4, 0) + forward() * 0.6
 	# Aim at whatever is under the crosshair.
 	var vp := get_viewport()
@@ -320,12 +327,17 @@ func _fire_bolt() -> void:
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	var target: Vector3 = hit.position if hit else ray_from + ray_dir * 80.0
 	var dir := (target - origin).normalized()
-	var bolt := SoulBolt.new()
-	bolt.direction = dir
-	bolt.damage = damage() * 0.85 * (1.0 + 0.25 * Souls.upgrade("bolt"))
-	bolt.shooter = self
-	world.add_child(bolt)
-	bolt.global_position = origin
+	var angles: Array[float] = [0.0]
+	for i in _relic("splitter"):
+		angles.append(0.2 * (i + 1))
+		angles.append(-0.2 * (i + 1))
+	for ang in angles:
+		var bolt := SoulBolt.new()
+		bolt.direction = dir.rotated(Vector3.UP, ang)
+		bolt.damage = damage() * 0.85 * (1.0 + 0.25 * Souls.upgrade("bolt")) * (1.0 if ang == 0.0 else 0.6)
+		bolt.shooter = self
+		world.add_child(bolt)
+		bolt.global_position = origin
 	Sfx.play("bolt", -6.0)
 	body.once("Spellcast_Shoot", 1.8)
 
@@ -333,7 +345,7 @@ func _fire_bolt() -> void:
 func _dash(input: Vector2) -> void:
 	if dash_cd > 0.0:
 		return
-	dash_cd = Cfg.gf("player.dash_cooldown_sec") * pow(0.88, Souls.upgrade("shadowstep"))
+	dash_cd = Cfg.gf("player.dash_cooldown_sec") * pow(0.88, Souls.upgrade("shadowstep")) * pow(0.75, _relic("atem"))
 	var dir := Basis(Vector3.UP, cam_yaw) * Vector3(input.x, 0, input.y)
 	if dir.length() < 0.1:
 		dir = forward()
@@ -357,6 +369,7 @@ func take_damage(amount: float, from_pos: Vector3) -> void:
 		return
 	if Arena.in_safe_zone(global_position):
 		return  # Nothing can hurt you at the altar.
+	amount *= pow(0.85, _relic("panzer"))
 	hp -= amount
 	last_hurt_time = _time
 	invulnerable = 0.35
