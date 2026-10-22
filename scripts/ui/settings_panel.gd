@@ -18,6 +18,7 @@ func _ready() -> void:
 	_slider(grid, "Gesamtlautstärke", "audio.master_volume", 0.0, 1.0, 0.01)
 	_slider(grid, "Flüster-Lautstärke", "audio.whisper_volume", 0.0, 1.0, 0.01)
 	_slider(grid, "Sichtfeld (FOV)", "graphics.fov", 55.0, 100.0, 1.0)
+	_slider(grid, "Helligkeit", "graphics.brightness", 0.5, 2.0, 0.05)
 	_slider(grid, "Partikelmenge", "graphics.particles", 0.0, 2.0, 0.1)
 	_check(grid, "Vollbild", "graphics.fullscreen")
 	_check(grid, "Maus Y invertieren", "controls.invert_y")

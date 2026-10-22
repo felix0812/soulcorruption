@@ -23,7 +23,8 @@ Bei einem Tag `v*` (z. B. `v1.0.0`) landet die ZIP zusätzlich als Release.
 | **Flüstern** | Gehaltene Seelen flüstern im Chat und in der Actionbar, passend zu ihrer Persönlichkeit (zornig, verzweifelt, höhnisch, wahnsinnig, trauernd) oder als Echo ihrer letzten Worte. Mehr Seelen bedeuten häufigeres und aggressiveres Flüstern, ab Stufe 4 verzerrt. |
 | **Korruption** | 5 Stufen (Rein → Verschlungen). Mehr Schaden, Tempo und Lebensraub, dafür weniger max. LP. Visuell: Vignette, Adern am Bildrand, Farbverschiebung, chromatische Aberration, roter Nebel, glühender Spielerumriss, Aura-Partikel. |
 | **Halluzinationen** | Ab Stufe 3: Phantom-Gegner mit Namen deiner Seelen, gefälschte Chat-/Systemnachrichten, kleine Teleports, falsche Seelen-Orbs, Bildstörungen. |
-| **Shop** | Seelenaltar (E am Altar oder B in Wellenpausen). Seelen sind die Währung, und jeder Kauf senkt deine Korruption: Heilung, dauerhafte Upgrades, Geisterpakt, Weihwasser gegen Halluzinationen. |
+| **Physik** | Skelette zerfallen beim Tod in Schädel, Knochen und Rippen, die physikalisch wegfliegen. Schädel, Kürbisse, Kerzen, Bänke und Särge liegen lose herum, lassen sich wegtreten und werden von Schlägen, Seelenblitzen und dem Erdstoß des Bosses weggeschleudert. |
+| **Shop** | Seelenaltar (E am Altar oder B in Wellenpausen). Der Altarbereich (leuchtender Ring) ist eine **Safe Zone**: kein Schaden, Gegner kommen nicht hinein. Seelen sind die Währung, und jeder Kauf senkt deine Korruption: Heilung, dauerhafte Upgrades, Geisterpakt, Weihwasser gegen Halluzinationen. |
 | **Geister-Begleiter** | Beschwöre den Geist einer gestohlenen Seele (G oder im Inventar). Er kämpft eine Weile und verabschiedet sich mit einer persönlichen Zeile. |
 | **/soul-Befehle** | `balance`, `top`, `withdraw <n>`, `shop`, `list`, `info`, `summon`, `release`, dazu `/config reload`. |
 | **Speicherung** | Pro Spielerprofil eine JSON-Datei (Seelen, Upgrades, Statistiken, Bann). Autosave und atomares Schreiben. |
@@ -53,7 +54,8 @@ Bei einem Tag `v*` (z. B. `v1.0.0`) landet die ZIP zusätzlich als Release.
 ## Technik
 
 - **Engine:** Godot 4.7.2, GDScript, Forward+ Renderer (fällt auf älterer Hardware automatisch auf OpenGL zurück)
-- **Grafik & Sound** komplett prozedural: Modelle aus Grundformen, eigene Shader (`shaders/`), Partikel, synthetisierte Klänge. Keine fremden Assets.
+- **Modelle & Animationen:** [KayKit](https://kaylousberg.itch.io/) von Kay Lousberg (Skeletons, Adventurers, Halloween Bits), Lizenz CC0. Lizenzdateien in `assets/kaykit/`.
+- **Effekte & Sound:** eigene Shader (`shaders/`), Partikel und synthetisierte Klänge, alles im Code.
 - **Struktur**
   - `scripts/autoload/`: `Cfg` (Config), `Souls` (Seelen-Persistenz), `Lore` (Namen, letzte Worte, Flüstern), `Sfx` (Klangsynthese)
   - `scripts/souls/`: Seelen-Item, Seelen-Orb, Geister-Begleiter
@@ -61,7 +63,7 @@ Bei einem Tag `v*` (z. B. `v1.0.0`) landet die ZIP zusätzlich als Release.
   - `scripts/systems/`: Korruption, Flüstern, Halluzinationen, Wellen
   - `scripts/world/`: Arena, Welt (Seelenregeln), Build-Helfer
   - `scripts/ui/`: HUD, Inventar, Shop, Konsole, Menüs
-- **Selbsttest:** `godot --headless --path . -- --autotest` spielt alle Systeme durch (Wellen, Seelenraub, Inventar, Shop, Befehle, Geister, Korruptionsstufen, Halluzinationen, Boss, Tod, Speichern/Laden, Seelenlos, Bann). Läuft in CI im Editor und gegen den exportierten Build.
+- **Selbsttest:** `godot --headless --path . -- --autotest` spielt alle Systeme durch (Wellen, Seelenraub, Inventar, Shop, Befehle, Geister, Korruptionsstufen, Halluzinationen, Physik, Safe Zone, Boss, Tod, Speichern/Laden, Seelenlos, Bann). Läuft in CI im Editor und gegen den exportierten Build.
 
 ### Selbst bauen
 

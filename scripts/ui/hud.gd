@@ -291,7 +291,7 @@ func _update_hint() -> void:
 	if world.player.dead:
 		hint_label.text = ""
 	elif world.near_altar():
-		hint_label.text = "[E] Seelenaltar: Handel mit dem Jenseits"
+		hint_label.text = "Sichere Zone · [E] Seelenaltar: Handel mit dem Jenseits"
 	else:
 		hint_label.text = ""
 

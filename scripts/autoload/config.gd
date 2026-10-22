@@ -85,6 +85,7 @@ static func defaults() -> Dictionary:
 			"hp": 60.0,
 		},
 		"shop": {
+			"safe_zone_radius": 6.5,
 			"heal_cost": 2,
 			"blade_cost": 5,
 			"vessel_cost": 5,
@@ -123,6 +124,7 @@ static func defaults() -> Dictionary:
 			"fullscreen": false,
 			"vsync": true,
 			"fov": 75.0,
+			"brightness": 1.0,
 			"glow": true,
 			"fog": true,
 			"volumetric_fog": false,

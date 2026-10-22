@@ -29,7 +29,7 @@ func _physics_process(delta: float) -> void:
 	var from := global_position
 	var to := from + direction * SPEED * delta
 	# World collision.
-	var q := PhysicsRayQueryParameters3D.create(from, to, 1)
+	var q := PhysicsRayQueryParameters3D.create(from, to, 1 | Props.LAYER)
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if not hit.is_empty():
 		global_position = hit.position
@@ -54,4 +54,5 @@ func _explode() -> void:
 	var parent := get_parent() as Node3D
 	if parent:
 		Build.burst(parent, global_position, Color(0.6, 0.85, 1.0), 16, 3.0, 0.25, 0.5)
+		Props.blast(get_tree(), global_position, 2.5, 5.0)
 	queue_free()

@@ -20,6 +20,10 @@ speichert das Spiel stattdessen unter %APPDATA%\SoulCorruption.
 Hinweis: Windows SmartScreen kann beim ersten Start warnen, weil die
 .exe nicht signiert ist ("Weitere Informationen" > "Trotzdem ausführen").
 
+Zu dunkel oder zu hell? Einstellungen > Helligkeit.
+Der Ring um den Seelenaltar ist eine sichere Zone: dort kann dir nichts
+passieren und kein Gegner kommt hinein.
+
 STEUERUNG
 ---------
 W A S D               Bewegen
@@ -47,3 +51,8 @@ BEFEHLE
 /soul summon [nr]   Geist beschwören
 /soul release <nr>  Seele freilassen
 /config reload      config.json neu laden
+
+CREDITS
+-------
+3D-Modelle und Animationen: KayKit von Kay Lousberg (kaylousberg.com),
+Lizenz CC0.

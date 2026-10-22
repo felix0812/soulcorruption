@@ -246,4 +246,4 @@ func withdraw(n: int) -> int:
 
 
 func near_altar() -> bool:
-	return player != null and player.global_position.distance_to(Arena.ALTAR_POS) < 5.0
+	return player != null and Arena.in_safe_zone(player.global_position)

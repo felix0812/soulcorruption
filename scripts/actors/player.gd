@@ -11,6 +11,7 @@ const ATTACK_COOLDOWN := 0.42
 const ATTACK_RANGE := 2.9
 const DASH_TIME := 0.18
 const DASH_SPEED := 19.0
+const ATTACKS := ["Dualwield_Melee_Attack_Slice", "1H_Melee_Attack_Slice_Diagonal", "Dualwield_Melee_Attack_Chop", "1H_Melee_Attack_Stab"]
 
 var world  # World node (left untyped on purpose: dynamic access to its systems)
 var max_hp := 100.0
@@ -27,6 +28,7 @@ var dash_dir := Vector3.ZERO
 var swing_t := -1.0
 var swing_side := 1.0
 var _hit_done := false
+var _combo := 0
 var last_hurt_time := -100.0
 var shake := 0.0
 
@@ -36,8 +38,7 @@ var rig: Node3D
 var spring: SpringArm3D
 var camera: Camera3D
 var visual: Node3D
-var blade_pivot: Node3D
-var cloak: MeshInstance3D
+var body: CharacterModel
 var aura: GPUParticles3D
 var soul_light: OmniLight3D
 var rim: ShaderMaterial
@@ -48,7 +49,7 @@ func _ready() -> void:
 	add_to_group("player")
 	add_to_group("settings_listeners")
 	collision_layer = 2
-	collision_mask = 1 | 4
+	collision_mask = 1 | 4 | Props.LAYER
 	floor_snap_length = 0.4
 	var cs := CollisionShape3D.new()
 	var shape := CapsuleShape3D.new()
@@ -67,29 +68,17 @@ func _build_visual() -> void:
 	visual = Node3D.new()
 	add_child(visual)
 	rim = Build.rim_mat()
-	var cloth := Build.mat(Color(0.07, 0.06, 0.09), 0.9)
-	var skin := Build.mat(Color(0.55, 0.5, 0.55), 0.7)
-	var metal := Build.mat(Color(0.45, 0.45, 0.5), 0.3, Color.BLACK, 0.0, 0.8)
-	cloak = Build.part(visual, Build.cylinder(0.22, 0.5, 1.35, 10), cloth, Vector3(0, 0.75, 0))
-	cloak.material_overlay = rim
-	var torso := Build.part(visual, Build.capsule(0.27, 0.9), cloth, Vector3(0, 1.2, 0))
-	torso.material_overlay = rim
-	var head := Build.part(visual, Build.sphere(0.2), skin, Vector3(0, 1.72, 0))
-	head.material_overlay = rim
-	var hood := Build.part(visual, Build.cylinder(0.05, 0.28, 0.5, 10), cloth, Vector3(0, 1.8, 0.03))
-	hood.material_overlay = rim
-	# Glowing eyes peek out of the hood.
-	var eye := Build.glow_mat(Color(0.5, 0.9, 1.0), 4.0)
-	Build.part(visual, Build.sphere(0.035, 6), eye, Vector3(-0.07, 1.74, -0.18))
-	Build.part(visual, Build.sphere(0.035, 6), eye, Vector3(0.07, 1.74, -0.18))
-	# Soul blade on a pivot at the right shoulder.
-	blade_pivot = Node3D.new()
-	blade_pivot.position = Vector3(0.35, 1.25, 0)
-	visual.add_child(blade_pivot)
-	Build.part(blade_pivot, Build.box(Vector3(0.08, 0.08, 0.3)), metal, Vector3(0, 0, -0.1))
-	var blade := Build.part(blade_pivot, Build.box(Vector3(0.05, 0.14, 1.25)), Build.soul_mat(Color(0.7, 1.0, 1.0), Color(0.4, 0.3, 1.0), 2.2), Vector3(0, 0, -0.85))
-	blade.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	blade_pivot.rotation = Vector3(-0.3, 0.9, 0)
+	body = CharacterModel.new()
+	visual.add_child(body)
+	body.setup("Rogue_Hooded.glb", 0.82)
+	body.hide_meshes(["Crossbow", "Throwable"])
+	body.set_overlay(rim)
+	# The twin daggers carry a faint soul glow.
+	var glow := Build.soul_mat(Color(0.7, 1.0, 1.0), Color(0.4, 0.3, 1.0), 1.4, 0.45)
+	for m in body.meshes:
+		if String(m.name).begins_with("Knife"):
+			m.material_overlay = glow
+	body.loop("Idle")
 	soul_light = Build.light(self, Color(0.5, 0.8, 1.0), 0.6, 5.0, Vector3(0, 1.5, 0))
 	aura = Build.particles(self, {
 		"amount": 40, "lifetime": 1.4, "velocity": 0.8, "spread": 25.0, "size": 0.22,
@@ -201,12 +190,12 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = maxf(velocity.y, -1.0)
 	move_and_slide()
+	Props.push_from_slides(self, 2.0)
 
 	# Body faces the camera direction (makes aiming the bolt easy).
 	if not dead:
 		visual.rotation.y = lerp_angle(visual.rotation.y, cam_yaw, 1.0 - exp(-delta * 14.0))
-		var moving := Vector2(velocity.x, velocity.z).length() > 0.5
-		cloak.scale = Vector3(1.0, 1.0 + (sin(_time * 12.0) * 0.03 if moving else 0.0), 1.0)
+		_update_locomotion(input)
 	_update_swing(delta)
 	_update_regen(delta)
 
@@ -255,22 +244,34 @@ func _start_attack() -> void:
 	swing_t = 0.0
 	swing_side = -swing_side
 	_hit_done = false
+	_combo = (_combo + 1) % ATTACKS.size()
+	body.once(ATTACKS[_combo], 1.7)
 	Sfx.play("slash", -4.0)
 
 
 func _update_swing(delta: float) -> void:
 	if swing_t < 0.0:
-		blade_pivot.rotation = blade_pivot.rotation.lerp(Vector3(-0.3, 0.9, 0), 1.0 - exp(-delta * 10.0))
 		return
 	swing_t += delta
-	var k := clampf(swing_t / 0.2, 0.0, 1.0)
-	var ease_k := 1.0 - pow(1.0 - k, 3.0)
-	blade_pivot.rotation = Vector3(-0.2, lerpf(1.5, -1.5, ease_k) * swing_side, 0.4 * swing_side)
-	if not _hit_done and swing_t >= 0.08:
+	if not _hit_done and swing_t >= 0.14:
 		_hit_done = true
 		_resolve_melee()
-	if swing_t > 0.32:
+	if swing_t > 0.4:
 		swing_t = -1.0
+
+
+## Picks run / strafe / backwards / idle from the input relative to the view.
+func _update_locomotion(input: Vector2) -> void:
+	var speed := Vector2(velocity.x, velocity.z).length()
+	var anim_speed := clampf(speed / 6.0, 0.6, 1.6)
+	if speed < 0.6 or input.length() < 0.1:
+		body.loop("Idle")
+	elif input.y > 0.5:
+		body.loop("Walking_Backwards", anim_speed * 1.3)
+	elif absf(input.x) > 0.6 and absf(input.y) < 0.4:
+		body.loop("Running_Strafe_Right" if input.x > 0.0 else "Running_Strafe_Left", anim_speed)
+	else:
+		body.loop("Running_A", anim_speed)
 
 
 func _resolve_melee() -> void:
@@ -287,6 +288,7 @@ func _resolve_melee() -> void:
 		e.take_hit(damage(), global_position, 6.0)
 		hit_any = true
 		_lifesteal(damage())
+	Props.swing(get_tree(), global_position, fwd, ATTACK_RANGE + 0.4, 4.5)
 	if hit_any:
 		shake = maxf(shake, 0.35)
 
@@ -325,6 +327,7 @@ func _fire_bolt() -> void:
 	world.add_child(bolt)
 	bolt.global_position = origin
 	Sfx.play("bolt", -6.0)
+	body.once("Spellcast_Shoot", 1.8)
 
 
 func _dash(input: Vector2) -> void:
@@ -336,6 +339,14 @@ func _dash(input: Vector2) -> void:
 		dir = forward()
 	dash_dir = dir.normalized()
 	dash_time = DASH_TIME
+	var anim := "Dodge_Forward"
+	if input.y > 0.5:
+		anim = "Dodge_Backward"
+	elif input.x > 0.5:
+		anim = "Dodge_Right"
+	elif input.x < -0.5:
+		anim = "Dodge_Left"
+	body.once(anim, 2.0)
 	invulnerable = maxf(invulnerable, 0.28)
 	Sfx.play("dash", -6.0)
 	Build.burst(world, global_position + Vector3(0, 1, 0), Color(0.5, 0.4, 1.0, 0.8), 18, 2.0, 0.4, 0.5)
@@ -344,6 +355,8 @@ func _dash(input: Vector2) -> void:
 func take_damage(amount: float, from_pos: Vector3) -> void:
 	if dead or invulnerable > 0.0:
 		return
+	if Arena.in_safe_zone(global_position):
+		return  # Nothing can hurt you at the altar.
 	hp -= amount
 	last_hurt_time = _time
 	invulnerable = 0.35
@@ -353,6 +366,8 @@ func take_damage(amount: float, from_pos: Vector3) -> void:
 	if push.length() > 0.01:
 		velocity += push.normalized() * 5.0
 	Sfx.play("hurt", -3.0)
+	if not body.busy():
+		body.once("Hit_A", 1.5)
 	if world and world.hud:
 		world.hud.flash_damage(clampf(amount / 30.0, 0.3, 1.0))
 	hp_changed.emit(maxf(hp, 0.0), max_hp)
@@ -378,9 +393,8 @@ func _die() -> void:
 	hp = 0.0
 	velocity = Vector3.ZERO
 	Sfx.play("death", -2.0)
-	var tw := create_tween()
-	tw.tween_property(visual, "rotation:x", -PI / 2.0, 0.6).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(visual, "position:y", 0.3, 0.6)
+	swing_t = -1.0
+	body.final("Death_A")
 	died.emit()
 
 
@@ -389,7 +403,9 @@ func respawn(pos: Vector3) -> void:
 	global_position = pos
 	velocity = Vector3.ZERO
 	visual.rotation = Vector3(0, cam_yaw, 0)
-	visual.position = Vector3.ZERO
+	body.reset_state()
+	body.once("Lie_StandUp", 1.4)
+	body.loop("Idle")
 	recompute_stats()
 	hp = max_hp
 	invulnerable = 2.5

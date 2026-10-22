@@ -96,6 +96,13 @@ func _run() -> void:
 		if w.waves.phase == WaveDirector.Phase.BREAK:
 			break
 	check(w.waves.phase == WaveDirector.Phase.BREAK, "wave 1 cleared")
+	check(get_tree().get_nodes_in_group("props").size() > 30, "physics props placed (%d)" % get_tree().get_nodes_in_group("props").size())
+	check(get_tree().get_nodes_in_group("debris").size() > 0, "skeletons burst into physical bones")
+	var prop := get_tree().get_nodes_in_group("props")[0] as RigidBody3D
+	var prop_pos := prop.global_position
+	Props.blast(get_tree(), prop_pos + Vector3(0.5, 0, 0), 3.0, 8.0)
+	await wait(0.4)
+	check(prop.global_position.distance_to(prop_pos) > 0.2, "blast moves physics props")
 	var orbs := get_tree().get_nodes_in_group("orbs")
 	check(orbs.size() > 0, "soul orbs dropped (%d)" % orbs.size())
 	if orbs.size() > 0:
@@ -104,6 +111,8 @@ func _run() -> void:
 		await wait(0.2)
 		await shot("03_soul_orb")
 	for o in get_tree().get_nodes_in_group("orbs"):
+		if not is_instance_valid(o):
+			continue
 		w.player.global_position = (o as Node3D).global_position - Vector3(0, 1.0, 0)
 		await wait(0.25)
 	await wait(0.5)
@@ -189,7 +198,26 @@ func _run() -> void:
 	await wait(0.5)
 	check(get_tree().get_nodes_in_group("orbs").size() >= Cfg.gi("souls.boss_soul_count"), "boss drops %d souls" % Cfg.gi("souls.boss_soul_count"))
 
+	# Safe zone at the altar.
+	w.player.global_position = Vector3(0, 0.2, 3)
+	await wait(0.2)
+	check(w.near_altar(), "altar area counts as shop/safe zone")
+	var hp_before: float = w.player.hp
+	w.player.invulnerable = 0.0
+	w.player.take_damage(50.0, Vector3(0, 0, 8))
+	check(is_equal_approx(w.player.hp, hp_before), "no damage inside the safe zone")
+	var intruder := Enemy.new()
+	intruder.setup("hollow", 1, w)
+	intruder.position = Vector3(0, 0, 4)
+	w.add_child(intruder)
+	await wait(2.5)
+	var ir := Vector2(intruder.global_position.x, intruder.global_position.z).length()
+	check(ir >= Arena.safe_radius(), "enemies cannot enter the safe zone (r=%.1f)" % ir)
+	intruder.take_hit(99999.0, w.player.global_position, 1.0)
+
 	# Death: lose souls, respawn.
+	w.player.global_position = Vector3(10, 0.2, 10)
+	await wait(0.1)
 	before = Souls.total()
 	w.player.invulnerable = 0.0
 	w.player.take_damage(99999.0, Vector3.ZERO)
@@ -214,6 +242,10 @@ func _run() -> void:
 	check(w.corruption.speed_mult() < 1.0, "soulless debuff applies")
 	var ended := [false]
 	w.run_ended.connect(func(_s): ended[0] = true)
+	for o in get_tree().get_nodes_in_group("orbs"):
+		o.queue_free()  # No stray souls to pick up.
+	w.player.global_position = Vector3(-12, 0.2, 9)  # Outside the safe zone.
+	await wait(0.1)
 	w.player.invulnerable = 0.0
 	w.player.take_damage(99999.0, Vector3.ZERO)
 	await wait(0.5)
@@ -229,6 +261,8 @@ func _run() -> void:
 	await wait(1.0)
 	w = main.world
 	Souls.take_souls(Souls.total())
+	w.player.global_position = Vector3(10, 0.2, 10)  # Outside the safe zone.
+	await wait(0.1)
 	w.player.invulnerable = 0.0
 	w.player.take_damage(99999.0, Vector3.ZERO)
 	await wait(0.5)

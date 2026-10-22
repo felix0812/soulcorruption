@@ -62,7 +62,7 @@ void fragment() {
 	// Vignette that closes in as corruption grows.
 	float d = length(dir * vec2(1.0, 0.85));
 	float vig = smoothstep(0.85 - 0.3 * intensity - 0.2 * soulless, 0.25, d);
-	col *= mix(1.0, vig, 0.55 + 0.4 * intensity);
+	col *= mix(1.0, vig, 0.25 + 0.6 * intensity);
 
 	// Dark veins creeping in from the edges.
 	float veins = fbm(uv * vec2(7.0, 5.0) + vec2(t * 0.03, -t * 0.02));

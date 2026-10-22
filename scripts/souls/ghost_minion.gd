@@ -16,6 +16,7 @@ var _target = null
 var _orbit := 0.0
 var _leaving := false
 var _body: Node3D
+var _model: CharacterModel
 var _mat: ShaderMaterial
 
 
@@ -31,20 +32,24 @@ func _ready() -> void:
 	_mat = Build.soul_mat(col.lerp(Color.WHITE, 0.4), col, 1.6, 0.7)
 	_body = Node3D.new()
 	add_child(_body)
-	var torso := Build.part(_body, Build.cylinder(0.12, 0.42, 1.2, 12), _mat, Vector3(0, 0.9, 0))
-	torso.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var head := Build.part(_body, Build.sphere(0.2, 14), _mat, Vector3(0, 1.65, 0))
-	head.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var eye := Build.glow_mat(Color(1, 1, 1), 4.0)
-	Build.part(_body, Build.sphere(0.03, 6), eye, Vector3(-0.07, 1.68, -0.17))
-	Build.part(_body, Build.sphere(0.03, 6), eye, Vector3(0.07, 1.68, -0.17))
+	# The ghost wears the body of the victim, rendered as translucent soul-stuff.
+	var models := {"hollow": "Skeleton_Minion.glb", "wraith": "Skeleton_Rogue.glb", "warden": "Skeleton_Warrior.glb", "knight": "Skeleton_Warrior.glb", "ahne": "Skeleton_Mage.glb"}
+	_model = CharacterModel.new()
+	_body.add_child(_model)
+	_model.setup(models.get(soul.kind, "Skeleton_Mage.glb"), 0.8)
+	if soul.kind == "ahne":
+		_model.attach("Skeleton_Staff.gltf", "handslot.r")
+	else:
+		_model.attach("Skeleton_Blade.gltf", "handslot.r")
+	_model.set_override(_mat)
+	_model.loop("Running_A")
 	Build.light(self, col, 1.0, 4.0, Vector3(0, 1.2, 0))
 	Build.particles(_body, {
 		"amount": 22, "lifetime": 1.2, "velocity": 0.5, "spread": 30.0, "size": 0.3,
 		"color": Color(col.r, col.g, col.b, 0.5), "radius": 0.3, "direction": Vector3.DOWN,
 		"position": Vector3(0, 0.3, 0),
 	})
-	Build.label(self, "Geist: %s" % soul.victim, col.lerp(Color.WHITE, 0.5), 26, Vector3(0, 2.15, 0), 14.0)
+	Build.label(self, "Geist: %s" % soul.victim, col.lerp(Color.WHITE, 0.5), 26, Vector3(0, 2.2, 0), 14.0)
 	scale = Vector3.ONE * 0.01
 	create_tween().tween_property(self, "scale", Vector3.ONE, 0.6).set_trans(Tween.TRANS_BACK)
 	Sfx.play("summon", -3.0)
@@ -83,14 +88,14 @@ func _physics_process(delta: float) -> void:
 		if dist < 1.4 + _target.radius() and _attack_cd <= 0.0:
 			_attack_cd = 0.8
 			_target.take_hit(dmg, global_position, 2.5)
-			_body.rotation.x = -0.6
-			create_tween().tween_property(_body, "rotation:x", 0.0, 0.3)
+			_model.once("1H_Melee_Attack_Slice_Diagonal", 1.8)
 	else:
 		_orbit += delta * 0.8
 		goal = player.global_position + Vector3(cos(_orbit), 0, sin(_orbit)) * 2.2
-	goal.y = 0.3 + sin(_t * 2.0) * 0.2
+	goal.y = 0.15 + sin(_t * 2.0) * 0.1
 	var to := goal - global_position
 	var speed := 9.0 if _target else 6.0
+	_model.loop("Running_A" if to.length() > 0.4 else "Idle")
 	if to.length() > 0.05:
 		global_position += to.normalized() * minf(to.length(), speed * delta)
 		var flat := Vector2(to.x, to.z)
