@@ -24,8 +24,9 @@ Zu dunkel oder zu hell? Einstellungen > Helligkeit.
 Ruckelt es? Einstellungen > 3D-Auflösung senken oder Schatten ausschalten.
 Auf schwachen Grafikchips (z. B. Intel HD/UHD) und nach einem Absturz
 schaltet das Spiel automatisch auf OpenGL mit niedrigeren Einstellungen um
-(Einstellungen > Renderer). Stürzt es trotzdem ab, "Start_Kompatibilitaetsmodus.bat"
-benutzen. Das Log
+(Einstellungen > Renderer, gilt nach dem nächsten Start). Dafür wird
+nur die Datei override.cfg neben der .exe angelegt, keine Kommandozeile
+nötig. override.cfg löschen = zurück zu Vulkan. Das Log
 des letzten Starts liegt in SoulCorruption_Daten\logs\.
 Der Ring um den Seelenaltar ist eine sichere Zone: dort kann dir nichts
 passieren und kein Gegner kommt hinein.

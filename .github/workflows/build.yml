@@ -71,7 +71,7 @@ jobs:
         run: |
           mkdir -p dist/SoulCorruption
           cp build/windows/SoulCorruption.exe dist/SoulCorruption/
-          cp docs/LIESMICH.txt docs/Start_Kompatibilitaetsmodus.bat dist/SoulCorruption/
+          cp docs/LIESMICH.txt dist/SoulCorruption/
           cd dist && zip -r SoulCorruption-Windows.zip SoulCorruption
 
       - name: Upload artifact

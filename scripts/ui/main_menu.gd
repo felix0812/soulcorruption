@@ -87,9 +87,14 @@ func _ready() -> void:
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	footer.text = "v%s  ·  Spieldaten: %s%s" % [ProjectSettings.get_setting("application/config/version", "1.0"), Cfg.data_dir, "" if Cfg.portable else "  (nicht portabel: Ordner der .exe ist schreibgeschützt)"]
 	add_child(footer)
-	if GameLog.crashed_last_time:
-		var warn := UIKit.label("Das Spiel wurde zuletzt nicht normal beendet. Falls es abstürzt: „Start_Kompatibilitaetsmodus.bat“ benutzen\nund die Datei aus SoulCorruption_Daten\\logs schicken.", 15, Color(1.0, 0.7, 0.45))
-		UIKit.place(warn, Vector4(0, 1, 1, 1), Vector4(24, -80, -24, -40))
+	var note := ""
+	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+		note = "Kompatibilitätsmodus (OpenGL) aktiv. Umschalten: Einstellungen > Renderer."
+	elif GameLog.crashed_last_time:
+		note = "Das Spiel wurde zuletzt nicht normal beendet. Log: SoulCorruption_Daten\\logs"
+	if note != "":
+		var warn := UIKit.label(note, 15, Color(1.0, 0.7, 0.45))
+		UIKit.place(warn, Vector4(0, 1, 1, 1), Vector4(24, -60, -24, -36))
 		warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		add_child(warn)
 
