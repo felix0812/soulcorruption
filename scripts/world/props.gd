@@ -48,6 +48,10 @@ static func spawn(world: Node3D, file: String, pos: Vector3, scale_f := 1.0, mas
 	rb.add_child(cs)
 	var m := model(file)
 	m.scale = Vector3.ONE * scale_f
+	if size.y < 1.0:
+		# Small clutter doesn't need shadows.
+		for mi in m.find_children("*", "MeshInstance3D", true, false):
+			(mi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	rb.add_child(m)
 	var pm := PhysicsMaterial.new()
 	pm.bounce = 0.25

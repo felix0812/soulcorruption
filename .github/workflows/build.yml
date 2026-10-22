@@ -64,12 +64,14 @@ jobs:
           # Portable mode: data must live next to the executable.
           test -f build/linux/SoulCorruption_Daten/config.json
           test -d build/linux/SoulCorruption_Daten/profile
+          ls build/linux/SoulCorruption_Daten/logs/spiel_*.log
+          test ! -f build/linux/SoulCorruption_Daten/logs/laeuft.flag
 
       - name: Package
         run: |
           mkdir -p dist/SoulCorruption
           cp build/windows/SoulCorruption.exe dist/SoulCorruption/
-          cp docs/LIESMICH.txt dist/SoulCorruption/
+          cp docs/LIESMICH.txt docs/Start_Kompatibilitaetsmodus.bat dist/SoulCorruption/
           cd dist && zip -r SoulCorruption-Windows.zip SoulCorruption
 
       - name: Upload artifact

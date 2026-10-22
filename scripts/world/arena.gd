@@ -22,6 +22,11 @@ var _base_ambient := Color(0.5, 0.48, 0.65)
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
 var _flames: Array[OmniLight3D] = []
+## Static scenery is collected per model and drawn as one MultiMesh each
+## (a few dozen draw calls instead of well over a thousand).
+var _batches: Dictionary = {}
+var _rock_xforms: Array[Transform3D] = []
+const NO_SHADOW := ["path_A", "path_B", "floor_dirt_grave", "candle_triple", "shrine_candles", "fence_pillar", "fence_pillar_broken"]
 
 
 ## Radius of the safe zone around the altar (the shop area). Nothing can
@@ -45,6 +50,7 @@ func _ready() -> void:
 	_build_scenery()
 	_build_physics_props()
 	_build_mist()
+	_flush_batches()
 
 
 func _process(delta: float) -> void:
@@ -104,7 +110,8 @@ func _build_environment() -> void:
 	moon.light_color = Color(0.75, 0.78, 1.0)
 	moon.light_energy = 1.25
 	moon.rotation_degrees = Vector3(-42, 35, 0)
-	moon.directional_shadow_max_distance = 60.0
+	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	moon.directional_shadow_max_distance = 40.0
 	add_child(moon)
 	apply_settings()
 
@@ -120,8 +127,6 @@ func apply_settings() -> void:
 	env.volumetric_fog_enabled = Cfg.gb("graphics.volumetric_fog", false)
 	env.tonemap_exposure = 1.1 * clampf(Cfg.gf("graphics.brightness", 1.0), 0.3, 3.0)
 	moon.shadow_enabled = Cfg.gb("graphics.shadows", true)
-	if altar_light:
-		altar_light.shadow_enabled = moon.shadow_enabled
 
 
 ## Tints the fog with the corruption (called every frame by the corruption system).
@@ -185,13 +190,49 @@ func _build_ground() -> void:
 			_model("path_A" if i % 2 == 0 else "path_B", p, -a + _rng.randf_range(-0.3, 0.3), 0.7)
 
 
-func _model(file: String, pos: Vector3, yaw := 0.0, scale_f := 1.0) -> Node3D:
-	var m := Props.model(file)
-	m.position = pos
-	m.rotation.y = yaw
-	m.scale = Vector3.ONE * scale_f
-	add_child(m)
-	return m
+## Queues a static scenery model; returns its transform.
+func _model(file: String, pos: Vector3, yaw := 0.0, scale_f := 1.0, tilt_z := 0.0) -> Transform3D:
+	var t := Transform3D(Basis.from_euler(Vector3(0, yaw, tilt_z)).scaled(Vector3.ONE * scale_f), pos)
+	if not _batches.has(file):
+		_batches[file] = []
+	(_batches[file] as Array).append(t)
+	return t
+
+
+func _flush_batches() -> void:
+	for file in _batches:
+		var xforms: Array = _batches[file]
+		var inst := Props.model(file)
+		for mi in inst.find_children("*", "MeshInstance3D", true, false):
+			var local := Transform3D()
+			var n: Node = mi
+			while n != inst:
+				local = (n as Node3D).transform * local
+				n = n.get_parent()
+			var mat: Material = mi.material_override
+			if mat == null and mi.get_surface_override_material_count() > 0:
+				mat = mi.get_surface_override_material(0)
+			_add_multimesh(mi.mesh, mat, xforms, local, not NO_SHADOW.has(file))
+		inst.free()
+	_batches.clear()
+	var rock_mesh := Build.cylinder(0.3, 1.0, 1.0, 6)
+	_add_multimesh(rock_mesh, Build.mat(Color(0.22, 0.21, 0.24), 1.0), _rock_xforms, Transform3D(), true)
+	_rock_xforms.clear()
+
+
+func _add_multimesh(mesh: Mesh, mat: Material, xforms: Array, local: Transform3D, shadows: bool) -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, (xforms[i] as Transform3D) * local)
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	if mat:
+		mmi.material_override = mat
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
 
 
 func _static_box(pos: Vector3, size: Vector3, rot_y := 0.0) -> StaticBody3D:
@@ -253,7 +294,6 @@ func _build_boundary() -> void:
 	# Iron fence ring (KayKit fence pieces), rocks behind it, invisible wall.
 	var r := RADIUS + 0.6
 	var segments := int(TAU * r / 4.0)
-	var rock := Build.mat(Color(0.22, 0.21, 0.24), 1.0)
 	for i in segments:
 		var a := TAU * (i + 0.5) / segments
 		var p := Vector3(cos(a), 0, sin(a)) * r
@@ -269,8 +309,9 @@ func _build_boundary() -> void:
 		_static_box(p + Vector3(0, 3, 0), Vector3(TAU * r / segments + 0.4, 6, 0.6), yaw)
 		var h := _rng.randf_range(3.0, 8.0)
 		var rr := r + 3.5 + _rng.randf_range(0.0, 2.5)
-		Build.part(self, Build.cylinder(_rng.randf_range(0.3, 1.0), _rng.randf_range(1.6, 2.6), h, 6), rock,
-			Vector3(cos(a), 0, sin(a)) * rr + Vector3(0, h * 0.5 - 0.3, 0), Vector3(_rng.randf_range(-10, 10), _rng.randf_range(0, 360), _rng.randf_range(-10, 10)))
+		var w := _rng.randf_range(1.6, 2.6)
+		var rb := Basis.from_euler(Vector3(deg_to_rad(_rng.randf_range(-10, 10)), _rng.randf() * TAU, deg_to_rad(_rng.randf_range(-10, 10))))
+		_rock_xforms.append(Transform3D(rb * Basis.from_scale(Vector3(w, h, w)), Vector3(cos(a), 0, sin(a)) * rr + Vector3(0, h * 0.5 - 0.3, 0)))
 	# A grand gate arch in the north, outside the fence.
 	_model("arch_gate", Vector3(0, 0, -(r + 1.0)), 0.0, 1.3)
 
@@ -294,7 +335,7 @@ func _build_altar() -> void:
 	altar_crystal = Build.part(self, Build.cylinder(0.0, 0.35, 0.9, 4), Build.soul_mat(Color(0.8, 1.0, 1.0), Color(0.5, 0.3, 1.0), 2.5), ALTAR_POS + Vector3(0, 3.1, 0))
 	var bottom := Build.part(altar_crystal, Build.cylinder(0.35, 0.0, 0.6, 4), altar_crystal.material_override, Vector3(0, -0.75, 0))
 	bottom.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	altar_light = Build.light(self, Color(0.6, 0.5, 1.0), 2.4, 14.0, ALTAR_POS + Vector3(0, 3.4, 0), Cfg.gb("graphics.shadows", true))
+	altar_light = Build.light(self, Color(0.6, 0.5, 1.0), 2.4, 14.0, ALTAR_POS + Vector3(0, 3.4, 0))
 	# Glowing border of the safe zone + rising wisps along it.
 	var sr := safe_radius()
 	safe_ring = Build.part(self, Build.torus(sr - 0.06, sr + 0.06), Build.glow_mat(SAFE_COLOR, 2.0), ALTAR_POS + Vector3(0, 0.05, 0))
@@ -334,8 +375,7 @@ func _build_scenery() -> void:
 		var g: Array = graves[_rng.randi() % graves.size()]
 		var s := _rng.randf_range(0.8, 1.0)
 		var yaw := atan2(p.x, p.z) + _rng.randf_range(-0.25, 0.25)
-		var m := _model(g[0], p, yaw, s)
-		m.rotation.z = deg_to_rad(_rng.randf_range(-5, 5))
+		_model(g[0], p, yaw, s, deg_to_rad(_rng.randf_range(-5, 5)))
 		var size: Vector3 = g[1] * s
 		_static_box(p + Vector3(0, size.y * 0.5, 0), size, yaw)
 		placed += 1
@@ -361,13 +401,14 @@ func _build_scenery() -> void:
 		var p := Vector3(cos(a), 0, sin(a)) * 15.3
 		var post := _model("post_lantern", p, -a, 0.9)
 		_static_cylinder(p + Vector3(0, 1.5, 0), 0.25, 3.0)
-		_flame_light(post, Vector3(0, 2.0, 1.2), 2.2, 12.0)
+		if i % 2 == 0:
+			_flame_light(self, post * Vector3(0, 2.0, 1.2), 2.4, 14.0)
 	# Standing lanterns, skull posts and benches between the graves.
 	for i in 8:
 		var p := _random_spot(9.0)
-		var l := _model("lantern_standing", p, _rng.randf() * TAU)
-		if i % 2 == 0:
-			_flame_light(l, Vector3(0, 0.6, 0), 1.2, 7.0)
+		_model("lantern_standing", p, _rng.randf() * TAU)
+		if i % 4 == 0:
+			_flame_light(self, p + Vector3(0, 0.6, 0), 1.2, 7.0)
 	for i in 5:
 		var p := _random_spot(9.0)
 		_model("post_skull", p, _rng.randf() * TAU, 0.9)
@@ -415,8 +456,6 @@ func _build_physics_props() -> void:
 		for i in int(entry[3]):
 			var p := _random_spot(safe_radius() + 2.0)
 			var rb := Props.spawn(self, entry[0], p + Vector3(0, 0.05, 0), entry[1], entry[2], _rng.randf() * TAU)
-			if entry[0] == "pumpkin_orange_jackolantern" and i < 3:
-				_flame_light(rb, Vector3(0, 0.4, 0), 0.9, 5.0)
 			rb.sleeping = true  # Cheap until something touches them.
 
 

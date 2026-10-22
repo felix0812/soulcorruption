@@ -17,11 +17,23 @@ const DATA_FOLDER := "SoulCorruption_Daten"
 var data: Dictionary = {}
 var data_dir: String = ""
 var portable := true
+var game_log: GameLog
 
 
 func _init() -> void:
 	data_dir = _resolve_data_dir()
+	if not OS.has_feature("editor"):
+		game_log = GameLog.install(data_dir)
+		if game_log:
+			game_log.write("SoulCorruption %s · %s · %s · Renderer %s" % [
+				ProjectSettings.get_setting("application/config/version"), OS.get_name(), OS.get_processor_name(),
+				ProjectSettings.get_setting("rendering/renderer/rendering_method")])
 	load_config()
+
+
+func _exit_tree() -> void:
+	if game_log:
+		game_log.close()
 
 
 # --------------------------------------------------------------------------
@@ -125,6 +137,7 @@ static func defaults() -> Dictionary:
 			"vsync": true,
 			"fov": 75.0,
 			"brightness": 1.0,
+			"render_scale": 1.0,
 			"glow": true,
 			"fog": true,
 			"volumetric_fog": false,

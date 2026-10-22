@@ -217,6 +217,9 @@ static func light(parent: Node3D, color: Color, energy: float, range_m: float, p
 	l.omni_range = range_m
 	l.omni_attenuation = 1.4
 	l.shadow_enabled = shadows
+	l.distance_fade_enabled = true  # Far lights cost nothing.
+	l.distance_fade_begin = 30.0
+	l.distance_fade_length = 8.0
 	l.position = pos
 	parent.add_child(l)
 	return l

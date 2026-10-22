@@ -57,6 +57,7 @@ func remaining() -> int:
 
 func _begin_wave() -> void:
 	wave += 1
+	print("Welle %d beginnt (Seelen: %d, Knoten: %d)" % [wave, Souls.total(), Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
 	phase = Phase.COMBAT
 	_queue = composition(wave)
 	_spawn_cd = 0.5

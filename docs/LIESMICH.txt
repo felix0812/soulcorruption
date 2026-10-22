@@ -21,6 +21,9 @@ Hinweis: Windows SmartScreen kann beim ersten Start warnen, weil die
 .exe nicht signiert ist ("Weitere Informationen" > "Trotzdem ausführen").
 
 Zu dunkel oder zu hell? Einstellungen > Helligkeit.
+Ruckelt es? Einstellungen > 3D-Auflösung senken oder Schatten ausschalten.
+Stürzt das Spiel ab? "Start_Kompatibilitaetsmodus.bat" benutzen. Das Log
+des letzten Starts liegt in SoulCorruption_Daten\logs\.
 Der Ring um den Seelenaltar ist eine sichere Zone: dort kann dir nichts
 passieren und kein Gegner kommt hinein.
 

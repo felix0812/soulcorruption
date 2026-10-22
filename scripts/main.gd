@@ -13,6 +13,7 @@ func _ready() -> void:
 	_setup_input()
 	apply_settings()
 	get_tree().root.theme = UIKit.theme()
+	print("GPU: %s (%s), API %s" % [RenderingServer.get_video_adapter_name(), RenderingServer.get_video_adapter_vendor(), RenderingServer.get_video_adapter_api_version()])
 	var args := OS.get_cmdline_user_args()
 	if "--autotest" in args:
 		var t = load("res://scripts/autotest.gd").new()
@@ -40,6 +41,7 @@ func apply_settings() -> void:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if Cfg.gb("graphics.vsync") else DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = Cfg.gi("graphics.max_fps")
+	get_viewport().scaling_3d_scale = clampf(Cfg.gf("graphics.render_scale", 1.0), 0.5, 1.0)
 	Sfx.apply_volume()
 
 

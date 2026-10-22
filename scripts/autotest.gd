@@ -14,7 +14,85 @@ func _ready() -> void:
 		if a.begins_with("--shots="):
 			shots_dir = a.substr(8)
 			DirAccess.make_dir_recursive_absolute(shots_dir)
-	_run.call_deferred()
+	if "--bench" in OS.get_cmdline_user_args():
+		_bench.call_deferred()
+	elif "--soak" in OS.get_cmdline_user_args():
+		_soak.call_deferred()
+	else:
+		_run.call_deferred()
+
+
+## Plays several waves naturally (breaks, spawns, boss, safe zone, physics)
+## to catch crashes that only show up over time: `-- --autotest --soak`.
+func _soak() -> void:
+	main = get_parent()
+	Cfg.set_value("waves.intermission_sec", 4.0)
+	Cfg.set_value("waves.boss_every", 3)
+	main.start_game()
+	await wait(1.0)
+	var w: World = main.world
+	var t := 0.0
+	while t < 150.0 and w.waves.wave < 6:
+		w.player.invulnerable = 99.0
+		if w.waves.phase == WaveDirector.Phase.BREAK:
+			w.player.global_position = Vector3(0, 0.2, 3)  # Wait in the safe zone.
+		else:
+			var es: Array = w.enemies()
+			if not es.is_empty():
+				var e = es[randi() % es.size()]
+				if e.state != Enemy.State.RISING:
+					w.player.global_position = e.global_position + Vector3(0, 0.2, 2.0)
+					e.take_hit(40.0, w.player.global_position, 3.0)
+		await wait(0.5)
+		t += 0.5
+	print("soak reached wave %d after %.0fs, nodes=%d" % [w.waves.wave, t, Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
+	get_tree().quit(0 if w.waves.wave >= 4 else 1)
+
+
+## Performance probe: `-- --autotest --bench` prints frame and render stats
+## with a crowd of enemies on screen.
+func _bench() -> void:
+	main = get_parent()
+	main.start_game()
+	await wait(1.0)
+	var w: World = main.world
+	w.player.cam_yaw = PI
+	var kinds := ["hollow", "wraith", "warden", "hollow", "wraith"]
+	for i in 16:
+		var e := Enemy.new()
+		e.setup(kinds[i % kinds.size()], 3, w)
+		e.position = Vector3(randf_range(-14, 14), 0, randf_range(9, 20))
+		w.add_child(e)
+	await wait(3.0)
+	for i in 6:
+		for e in w.enemies():
+			if i % 2 == 0 and randf() < 0.3:
+				e.take_hit(99999.0, w.player.global_position, 1.0)
+		var t0 := Time.get_ticks_usec()
+		var frames := Engine.get_frames_drawn()
+		await wait(1.0)
+		var fps := (Engine.get_frames_drawn() - frames) / ((Time.get_ticks_usec() - t0) / 1e6)
+		print("bench fps=%.1f draws=%d objects=%d prims=%d proc=%.2fms phys=%.2fms bodies=%d nodes=%d" % [
+			fps,
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+			Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+			Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
+			Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS),
+			Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
+	var counts := {}
+	for mi in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+		var owner_name := "?"
+		var n: Node = mi
+		while n and n.get_parent() != w and n != get_tree().root:
+			n = n.get_parent()
+		if n:
+			owner_name = n.get_class() + ":" + (n.get_script().get_global_name() if n.get_script() else "")
+		var key := owner_name + " " + mi.get_class()
+		counts[key] = counts.get(key, 0) + 1
+	print("bench geometry: ", counts)
+	get_tree().quit(0)
 
 
 func check(cond: bool, msg: String) -> void:
