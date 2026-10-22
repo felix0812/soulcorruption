@@ -1,0 +1,8 @@
+# Godot
+.godot/
+/android/
+*.translation
+# Build output
+/build/
+/data/
+*.tmp

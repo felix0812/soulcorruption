@@ -1,0 +1,49 @@
+SoulCorruption
+==============
+
+Ein düsteres 3D-Seelenspiel. Stiehl die Seelen deiner Feinde, höre ihr
+Flüstern und verliere dich langsam in der Korruption.
+
+STARTEN
+-------
+Doppelklick auf SoulCorruption.exe. Keine Installation nötig.
+Der Ordner kann überallhin kopiert werden (USB-Stick, Desktop, ...).
+
+Spielstände und Einstellungen liegen im Ordner "SoulCorruption_Daten"
+direkt neben der .exe:
+  config.json          alle Einstellungen und Spielwerte
+  profile/<name>.json  deine Seelen, Verbesserungen und Statistiken
+
+Liegt die .exe in einem schreibgeschützten Ordner (z. B. "Programme"),
+speichert das Spiel stattdessen unter %APPDATA%\SoulCorruption.
+
+Hinweis: Windows SmartScreen kann beim ersten Start warnen, weil die
+.exe nicht signiert ist ("Weitere Informationen" > "Trotzdem ausführen").
+
+STEUERUNG
+---------
+W A S D               Bewegen
+Maus                  Kamera
+Linke Maustaste       Seelenklinge
+Rechte Maustaste / Q  Seelenblitz
+Leertaste / Shift     Schattenschritt
+E                     Altar benutzen
+Tab / I               Seelengefäß (Inventar)
+B                     Seelenhandel (Wellenpause oder am Altar)
+G                     Geist der jüngsten Seele beschwören
+F                     Nächste Welle sofort rufen
+T / Enter             Chat und Befehle
+Esc                   Pause
+F11                   Vollbild
+
+BEFEHLE
+-------
+/soul balance       Seelen und Korruption anzeigen
+/soul top           Bestenliste aller Profile
+/soul withdraw <n>  n Seelen als Orbs ablegen
+/soul shop          Seelenhandel öffnen
+/soul list          Alle Seelen auflisten
+/soul info <nr>     Details einer Seele
+/soul summon [nr]   Geist beschwören
+/soul release <nr>  Seele freilassen
+/config reload      config.json neu laden

@@ -1,0 +1,42 @@
+; Engine configuration file.
+; Godot 4.7 project for SoulCorruption.
+
+config_version=5
+
+[application]
+
+config/name="SoulCorruption"
+config/description="Ein düsteres 3D-Seelenspiel: stiehl Seelen, höre ihr Flüstern, verliere dich in der Korruption."
+config/version="1.0.0"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+config/icon="res://icon.svg"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="SoulCorruption"
+boot_splash/bg_color=Color(0.02, 0.01, 0.03, 1)
+boot_splash/show_image=false
+
+[autoload]
+
+Cfg="*res://scripts/autoload/config.gd"
+Lore="*res://scripts/autoload/lore.gd"
+Souls="*res://scripts/autoload/soul_bank.gd"
+Sfx="*res://scripts/autoload/sfx.gd"
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[rendering]
+
+rendering_device/fallback_to_opengl3=true
+anti_aliasing/quality/msaa_3d=1
+environment/defaults/default_clear_color=Color(0.02, 0.01, 0.03, 1)
+textures/canvas_textures/default_texture_filter=1

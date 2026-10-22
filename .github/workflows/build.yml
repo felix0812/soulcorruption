@@ -1,0 +1,86 @@
+name: Build SoulCorruption
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-v1
+
+      - name: Download Godot + export templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          mkdir -p ~/godot
+          curl -sSL -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          curl -sSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$dest"
+          unzip -q -j /tmp/templates.tpz \
+            templates/windows_release_x86_64.exe templates/linux_release.x86_64 templates/version.txt \
+            -d "$dest"
+          rm /tmp/godot.zip /tmp/templates.tpz
+
+      - name: Import project
+        run: timeout 300 ~/godot/godot --headless --path . --import
+
+      - name: Self-test (all game systems)
+        run: timeout 600 ~/godot/godot --headless --path . -- --autotest
+
+      - name: Export Windows (portable single exe)
+        run: |
+          mkdir -p build/windows
+          timeout 600 ~/godot/godot --headless --path . --export-release "Windows Desktop" build/windows/SoulCorruption.exe
+          test -s build/windows/SoulCorruption.exe
+
+      - name: Self-test the exported build (Linux twin of the exe)
+        run: |
+          mkdir -p build/linux
+          timeout 600 ~/godot/godot --headless --path . --export-release "Linux" build/linux/SoulCorruption.x86_64
+          timeout 600 build/linux/SoulCorruption.x86_64 --headless -- --autotest
+          # Portable mode: data must live next to the executable.
+          test -f build/linux/SoulCorruption_Daten/config.json
+          test -d build/linux/SoulCorruption_Daten/profile
+
+      - name: Package
+        run: |
+          mkdir -p dist/SoulCorruption
+          cp build/windows/SoulCorruption.exe dist/SoulCorruption/
+          cp docs/LIESMICH.txt dist/SoulCorruption/
+          cd dist && zip -r SoulCorruption-Windows.zip SoulCorruption
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SoulCorruption-Windows
+          path: dist/SoulCorruption/
+          if-no-files-found: error
+
+      - name: Publish release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/SoulCorruption-Windows.zip
